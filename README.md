@@ -1,4 +1,4 @@
-# Mini-Sheter
+# Mini-Shelter
 
 Таблица бронирований: номера по строкам, 30 дней по столбцам, брони окрашены по статусу оплаты
 (зелёный — оплачено, жёлтый — частично, красный — не оплачено).
@@ -54,13 +54,13 @@ sudo usermod -aG docker ubuntu && exit     # перезайдите по ssh п�
 С компьютера скопируйте проект (без `data/` и `.env`):
 
 ```bash
-rsync -av --exclude data --exclude .env --exclude node_modules -e "ssh -i ключ.pem" ./ ubuntu@ELASTIC_IP:~/mini-sheter/
+rsync -av --exclude data --exclude .env --exclude node_modules -e "ssh -i ключ.pem" ./ ubuntu@ELASTIC_IP:~/mini-shelter/
 ```
 
 На сервере:
 
 ```bash
-cd ~/mini-sheter
+cd ~/mini-shelter
 echo "PASSWORD=ваш-пароль" > .env && chmod 600 .env
 DOMAIN=booking.example.com docker compose up -d --build
 ```
@@ -80,10 +80,10 @@ DOMAIN=booking.example.com docker compose up -d --build
 
 ### Резервные копии
 
-База — это `~/mini-sheter/data/guests.db`. Ежедневная копия (на сервере, `crontab -e`):
+База — это `~/mini-shelter/data/guests.db`. Ежедневная копия (на сервере, `crontab -e`):
 
 ```
-0 3 * * * sqlite3 /home/ubuntu/mini-sheter/data/guests.db ".backup /home/ubuntu/backup-$(date +\%F).db"
+0 3 * * * sqlite3 /home/ubuntu/mini-shelter/data/guests.db ".backup /home/ubuntu/backup-$(date +\%F).db"
 ```
 
 (`sudo apt install sqlite3`.) Надёжнее — дополнительно включить снапшоты диска в EC2 → Lifecycle Manager.

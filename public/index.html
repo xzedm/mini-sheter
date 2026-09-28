@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Mini-Sheter</title>
+<title>Mini-Shelter</title>
 <style>
   :root {
     --bg: #f4f5f7;
@@ -63,11 +63,8 @@
     cursor: pointer;
     white-space: nowrap;
   }
-  .btn:hover { background: var(--hover); }
   .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .btn.primary:hover { filter: brightness(1.08); }
   .btn.danger { color: var(--unpd-bd); border-color: #e7b3b3; }
-  .btn.danger:hover { background: #fdf0f0; }
   .btn:disabled { opacity: .5; cursor: default; }
 
   input[type=date].period { height: 32px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); }
@@ -139,7 +136,6 @@
 
   tbody tr { height: var(--row-h); }
   tbody th.room { cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  tbody th.room:hover { background: var(--hover); color: var(--accent); }
   th.room .cat { display: block; font-size: 11px; font-weight: 400; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
 
   /* Люкс и Делюкс выделены цветом всей строки */
@@ -150,14 +146,12 @@
   tr.deluxe th.room .cat { color: var(--dlx-bd); font-weight: 600; }
   tr.deluxe td.free { background: var(--dlx-row); }
   tr.lux td.free.today, tr.deluxe td.free.today { background: var(--today); }
-  tr.lux td.free:hover, tr.deluxe td.free:hover { background: var(--hover); }
   tr.lux td.free.selecting, tr.deluxe td.free.selecting { background: #d6e2ff; }
 
   td.free { cursor: cell; }
   /* день = две половины: утро (выезд) и вечер (заезд); линия сетки только между днями */
   td.free.am { border-right: none; }
   td.free.today { background: var(--today); }
-  td.free:hover { background: var(--hover); }
   td.free.selecting { background: #d6e2ff; }
 
   .month-start { border-left: 2px solid var(--line-strong); }
@@ -173,7 +167,6 @@
     white-space: nowrap;
     text-overflow: ellipsis;
   }
-  .bk:hover { filter: brightness(.97); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
   .bk b { display: block; font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; }
   .bk small { display: block; font-size: 12px; opacity: .8; overflow: hidden; text-overflow: ellipsis; }
   .bk.paid    { background: var(--paid-bg); border-color: var(--paid-bd); color: var(--paid-tx); }
@@ -236,26 +229,81 @@
   .actions { display: flex; gap: 8px; }
   .actions .spacer { flex: 1; }
 
+  @media (hover: hover) {
+    .btn:hover { background: var(--hover); }
+    .btn.primary:hover { background: var(--accent); filter: brightness(1.08); }
+    .btn.danger:hover { background: #fdf0f0; }
+    tbody th.room:hover { background: var(--hover); color: var(--accent); }
+    td.free:hover,
+    tr.lux td.free:hover, tr.deluxe td.free:hover { background: var(--hover); }
+    .bk:hover { filter: brightness(.97); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+  }
+
+  /* ---------- Адаптивность ---------- */
+
   /* на ноутбуках шапка должна помещаться в одну строку; категория и так подписана у номера */
   @media (max-width: 1500px) {
     .legend .sep, .legend .lux, .legend .deluxe { display: none; }
   }
 
-  @media (max-width: 900px) {
-    :root { --room-w: 90px; --day-w: 88px; }
-    .legend { display: none; }
+  /* планшеты и узкие окна: шапка в две строки — название, легенда, действия / навигация */
+  @media (max-width: 1200px) {
+    header {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      grid-template-areas: "title legend tools" "nav nav nav";
+    }
+    h1 { grid-area: title; }
+    .legend { grid-area: legend; justify-content: center; }
+    .tools { grid-area: tools; }
+    .nav { grid-area: nav; }
+    .spacer { display: none; }
+  }
+
+  /* телефоны */
+  @media (max-width: 700px) {
+    :root { --room-w: 78px; --day-w: 78px; --row-h: 44px; }
+    header { grid-template-areas: "title . tools" "nav nav nav"; padding: 8px 10px; gap: 8px; }
+    h1 { font-size: 16px; }
+    .legend, #add-room, #prev-month, #next-month, .nav .lbl { display: none; }
+    .nav .btn { flex: none; }
+    .nav #prev, .nav #next { width: 40px; padding: 0; }
+    input[type=date].period { flex: 1; min-width: 0; }
+    main { padding: 8px; }
+    .grid-wrap { border-radius: 6px; }
+    thead th { height: 44px; }
+    thead th .date { font-size: 11.5px; }
+    thead th .wd { font-size: 11px; }
+    th.room, thead th.corner { padding: 0 8px; }
+    th.room .cat { font-size: 10px; }
+    .bk { padding: 2px 6px; }
+    .bk b { font-size: 12px; }
+    .bk small { font-size: 11px; }
+
+    dialog form { padding: 16px; }
+    /* заезд и выезд рядом, количество ночей под ними */
+    .row.dates { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 8px; }
+    .row.dates .field:nth-child(2) { order: 3; grid-column: 1 / -1; }
+    .status label span { font-size: 12px; }
+  }
+
+  /* сенсорные экраны: кнопки крупнее, а шрифт полей 16px, чтобы iPhone не увеличивал страницу при вводе */
+  @media (pointer: coarse) {
+    .btn, input[type=date].period { height: 38px; }
+    .status label span { height: 40px; }
+    .field input, .field select, .field textarea, input[type=date].period { font-size: 16px; }
   }
 </style>
 </head>
 <body>
 
 <header>
-  <h1>Mini-Sheter</h1>
-  <div class="group">
+  <h1>Mini-Shelter</h1>
+  <div class="group nav">
     <button class="btn" id="prev-month" title="Назад на 30 дней">« Месяц</button>
-    <button class="btn" id="prev" title="Назад на неделю">‹ 7 дн.</button>
+    <button class="btn" id="prev" title="Назад на неделю">‹<span class="lbl"> 7 дн.</span></button>
     <button class="btn" id="today">Сегодня</button>
-    <button class="btn" id="next" title="Вперёд на неделю">7 дн. ›</button>
+    <button class="btn" id="next" title="Вперёд на неделю"><span class="lbl">7 дн. </span>›</button>
     <button class="btn" id="next-month" title="Вперёд на 30 дней">Месяц »</button>
     <input type="date" class="period" id="from" title="Начало периода">
   </div>
@@ -268,7 +316,7 @@
     <span class="deluxe">Делюкс</span>
   </div>
   <div class="spacer"></div>
-  <div class="group">
+  <div class="group tools">
     <button class="btn" id="add-room">+ Номер</button>
     <button class="btn primary" id="add-booking">+ Бронь</button>
     <form method="post" action="/logout"><button class="btn" title="Выйти">Выйти</button></form>

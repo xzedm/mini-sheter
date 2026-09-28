@@ -1,4 +1,4 @@
-// Mini-Sheter — шахматка бронирований: HTTP-сервер + SQLite, без внешних зависимостей.
+// Mini-Shelter — шахматка бронирований: HTTP-сервер + SQLite, без внешних зависимостей.
 // Требуется Node.js >= 22.13 (встроенный модуль node:sqlite).
 
 import http from 'node:http';
@@ -378,5 +378,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Mini-Sheter запущен: http://localhost:${PORT}  (база: ${DB_PATH})`);
+  console.log(`Mini-Shelter запущен: http://localhost:${PORT}  (база: ${DB_PATH})`);
 });

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Вход — Mini-Sheter</title>
+<title>Вход — Mini-Shelter</title>
 <style>
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
@@ -46,6 +46,11 @@
     cursor: pointer;
   }
   button[type=submit]:hover { background: #2a52be; }
+  /* шрифт 16px — иначе iPhone увеличивает страницу при вводе пароля */
+  @media (pointer: coarse) {
+    input { font-size: 16px; padding: 10px 12px; }
+    button[type=submit] { height: 42px; }
+  }
 
   .pw { position: relative; }
   .pw input { padding-right: 40px; }
@@ -73,7 +78,7 @@
 </head>
 <body>
   <form method="post" action="/login">
-    <h1>Mini-Sheter</h1>
+    <h1>Mini-Shelter</h1>
     <label for="password">Пароль</label>
     <div class="pw">
       <input type="password" id="password" name="password" required autofocus autocomplete="current-password">

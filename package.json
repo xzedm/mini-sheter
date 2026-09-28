@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Mini-Sheter — бронирование номеров",
+  "description": "Mini-Shelter — бронирование номеров",
   "engines": {
     "node": ">=22.13"
   },
