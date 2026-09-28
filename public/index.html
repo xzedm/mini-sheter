@@ -82,6 +82,13 @@
   .legend .sep { width: 1px; background: var(--line); }
   .legend .sep::before { display: none; }
 
+  /* сколько гостей проживает в выбранную ночь — справа от легенды */
+  .guests { padding-left: 14px; border-left: 1px solid var(--line); line-height: 1.2; white-space: nowrap; }
+  .guests:empty { display: none; }
+  .guests span { display: block; }
+  .guests .g-day, .guests .g-split { font-size: 11px; color: var(--muted); }
+  .guests .g-total { font-size: 13px; font-weight: 600; }
+
   /* ---------- Таблица ---------- */
   main { flex: 1; min-height: 0; padding: 12px 16px 16px; }
   .grid-wrap {
@@ -96,7 +103,8 @@
     border-collapse: separate;
     border-spacing: 0;
     table-layout: fixed;
-    width: max-content;
+    /* ширина задана точно, иначе длинное имя в короткой брони раздвигает столбец (30 = DAYS) */
+    width: calc(var(--room-w) + 30 * var(--day-w));
     user-select: none;
   }
   col.room { width: var(--room-w); }
@@ -132,6 +140,11 @@
     border-right-color: var(--line-strong);
     font-weight: 600;
   }
+  thead th.day { cursor: pointer; }
+  thead th.picked { box-shadow: inset 0 -3px 0 #9db3f0; }
+  thead th.picked .date { color: var(--accent); }
+
+
   thead th.corner { z-index: 3; left: 0; position: sticky; text-align: left; padding: 0 10px; color: var(--muted); font-weight: 500; }
 
   tbody tr { height: var(--row-h); }
@@ -245,26 +258,37 @@
   @media (max-width: 1500px) {
     .legend .sep, .legend .lux, .legend .deluxe { display: none; }
   }
+  @media (min-width: 1201px) and (max-width: 1500px) {
+    .nav .lbl { display: none; }
+    .nav #prev, .nav #next { width: 36px; padding: 0; }
+  }
+  @media (min-width: 1201px) and (max-width: 1360px) {
+    .nav .lbl-m { display: none; }
+    .nav #prev-month, .nav #next-month { width: 36px; padding: 0; }
+  }
 
-  /* планшеты и узкие окна: шапка в две строки — название, легенда, действия / навигация */
+  /* планшеты и узкие окна: шапка в две строки — название, легенда, действия / навигация, гости */
   @media (max-width: 1200px) {
     header {
       display: grid;
       grid-template-columns: auto 1fr auto;
-      grid-template-areas: "title legend tools" "nav nav nav";
+      grid-template-areas: "title legend tools" "nav nav guests";
     }
     h1 { grid-area: title; }
     .legend { grid-area: legend; justify-content: center; }
     .tools { grid-area: tools; }
     .nav { grid-area: nav; }
+    .guests { grid-area: guests; justify-self: end; }
     .spacer { display: none; }
   }
 
   /* телефоны */
   @media (max-width: 700px) {
     :root { --room-w: 78px; --day-w: 78px; --row-h: 44px; }
-    header { grid-template-areas: "title . tools" "nav nav nav"; padding: 8px 10px; gap: 8px; }
-    h1 { font-size: 16px; }
+    /* на телефоне вместо названия — счётчик гостей */
+    header { grid-template-areas: "guests . tools" "nav nav nav"; padding: 8px 10px; gap: 8px; }
+    h1 { display: none; }
+    .guests { justify-self: start; padding-left: 0; border-left: none; }
     .legend, #add-room, #prev-month, #next-month, .nav .lbl { display: none; }
     .nav .btn { flex: none; }
     .nav #prev, .nav #next { width: 40px; padding: 0; }
@@ -300,11 +324,11 @@
 <header>
   <h1>Mini-Shelter</h1>
   <div class="group nav">
-    <button class="btn" id="prev-month" title="Назад на 30 дней">« Месяц</button>
+    <button class="btn" id="prev-month" title="Назад на 30 дней">«<span class="lbl-m"> Месяц</span></button>
     <button class="btn" id="prev" title="Назад на неделю">‹<span class="lbl"> 7 дн.</span></button>
     <button class="btn" id="today">Сегодня</button>
     <button class="btn" id="next" title="Вперёд на неделю"><span class="lbl">7 дн. </span>›</button>
-    <button class="btn" id="next-month" title="Вперёд на 30 дней">Месяц »</button>
+    <button class="btn" id="next-month" title="Вперёд на 30 дней"><span class="lbl-m">Месяц </span>»</button>
     <input type="date" class="period" id="from" title="Начало периода">
   </div>
   <div class="legend">
@@ -315,6 +339,7 @@
     <span class="lux">Люкс</span>
     <span class="deluxe">Делюкс</span>
   </div>
+  <div class="guests" id="guests"></div>
   <div class="spacer"></div>
   <div class="group tools">
     <button class="btn" id="add-room">+ Номер</button>
@@ -359,6 +384,17 @@
       <label class="field">
         <span>Выезд</span>
         <input type="date" name="end_date" required>
+      </label>
+    </div>
+
+    <div class="row two">
+      <label class="field">
+        <span>Взрослые</span>
+        <input type="number" name="adults" min="0" max="99" step="1" inputmode="numeric">
+      </label>
+      <label class="field">
+        <span>Дети</span>
+        <input type="number" name="children" min="0" max="99" step="1" inputmode="numeric">
       </label>
     </div>
 
@@ -440,6 +476,8 @@ const todayIso = () => {
 const state = {
   from: new URLSearchParams(location.search).get('from') || todayIso(),
   categories: [],
+  statsDay: todayIso(),  // за какую ночь считать гостей в левом верхнем углу
+  stats: null,
   rooms: [],
   bookings: [],
 };
@@ -466,7 +504,11 @@ async function request(method, url, body) {
 async function load() {
   const to = addDays(state.from, DAYS - 1);
   try {
-    const data = await request('GET', `/api/data?from=${state.from}&to=${to}`);
+    const [data, stats] = await Promise.all([
+      request('GET', `/api/data?from=${state.from}&to=${to}`),
+      request('GET', `/api/stats?day=${state.statsDay}`),
+    ]);
+    state.stats = stats;
     state.rooms = data.rooms.sort(compareRooms);
     state.bookings = data.bookings;
     state.categories = data.categories;
@@ -486,6 +528,37 @@ function roomGroup(name) {
 function compareRooms(a, b) {
   return roomGroup(a.name) - roomGroup(b.name)
     || a.name.localeCompare(b.name, 'ru', { numeric: true });
+}
+
+async function showStats(day) {
+  state.statsDay = day;
+  try {
+    state.stats = await request('GET', `/api/stats?day=${day}`);
+  } catch {
+    state.stats = null;
+  }
+  render();
+}
+
+function plural(n, one, few, many) {
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return one;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+  return many;
+}
+
+const peopleShort = (adults, children) =>
+  `${adults} взр.` + (children ? `, ${children} дет.` : '');
+
+function renderGuests() {
+  const box = $('#guests');
+  const st = state.stats;
+  if (!st) { box.innerHTML = ''; return; }
+  const total = st.adults + st.children;
+  box.title = `Проживают в ночь на ${ruDate(state.statsDay)}, занято номеров: ${st.rooms}`;
+  box.innerHTML = `<span class="g-day">${ruDate(state.statsDay)}</span>`
+    + `<span class="g-total">${total} ${plural(total, 'гость', 'гостя', 'гостей')}</span>`
+    + `<span class="g-split">${st.adults} взр. · ${st.children} дет.</span>`;
 }
 
 function setFrom(iso) {
@@ -523,9 +596,12 @@ function render() {
   ].join(' ').trim();
 
   let html = '<table><colgroup><col class="room">' + '<col class="half">'.repeat(SLOTS) + '</colgroup>';
+  renderGuests();
   html += '<thead><tr><th class="room corner">Номер</th>';
   days.forEach((iso, i) => {
-    html += `<th colspan="2" class="${dayClass(iso, i)}"><span class="date">${ruDate(iso)}</span>`
+    const picked = iso === state.statsDay && iso !== today ? 'picked' : '';
+    html += `<th colspan="2" class="day ${dayClass(iso, i)} ${picked}" data-day="${iso}" title="Показать гостей на эту ночь">`
+          + `<span class="date">${ruDate(iso)}</span>`
           + `<span class="wd">${WEEKDAYS[toDate(iso).getUTCDay()]}</span></th>`;
   });
   html += '</tr></thead><tbody>';
@@ -558,7 +634,7 @@ function render() {
           b.end_date > days[DAYS - 1] ? 'cut-right' : ''].join(' ');
         html += `<td class="busy" colspan="${last - slot + 1}">`
               + `<div class="${cls}" data-booking="${b.id}" title="${esc(tooltip(b))}">`
-              + `<b>${esc(b.guest)}</b><small>${esc(b.phone || STATUS_RU[b.status])}</small></div></td>`;
+              + `<b>${esc(b.guest)}</b><small>${esc([peopleShort(b.adults, b.children), b.phone].filter(Boolean).join(' · '))}</small></div></td>`;
         slot = last + 1;
       } else {
         const half = slot % 2 ? 'pm' : 'am';
@@ -579,19 +655,13 @@ function render() {
   grid.innerHTML = html;
 }
 
-function nightsWord(n) {
-  const m10 = n % 10, m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return 'ночь';
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'ночи';
-  return 'ночей';
-}
-
 function tooltip(b) {
   const n = diffDays(b.start_date, b.end_date);
   return [
     b.guest,
     b.phone && 'Тел.: ' + b.phone,
-    `Заезд ${ruDate(b.start_date)}, выезд ${ruDate(b.end_date)} (${n} ${nightsWord(n)})`,
+    'Гости: ' + peopleShort(b.adults, b.children),
+    `Заезд ${ruDate(b.start_date)}, выезд ${ruDate(b.end_date)} (${n} ${plural(n, 'ночь', 'ночи', 'ночей')})`,
     STATUS_RU[b.status] + (b.total ? `, сумма ${b.total}` : '') + (b.paid ? `, внесено ${b.paid}` : ''),
     b.note,
   ].filter(Boolean).join('\n');
@@ -656,6 +726,8 @@ function paintSelection() {
 }
 
 grid.addEventListener('click', (e) => {
+  const dayTh = e.target.closest('th[data-day]');
+  if (dayTh) return showStats(dayTh.dataset.day);
   const bk = e.target.closest('[data-booking]');
   if (bk) return openBooking(state.bookings.find((b) => b.id === Number(bk.dataset.booking)));
   const room = e.target.closest('[data-room-edit]');
@@ -672,7 +744,7 @@ function openBooking(booking, preset = {}) {
   if (!state.rooms.length) return openRoom(null);
   editingBooking = booking || null;
   const b = booking || {
-    guest: '', phone: '', status: 'unpaid', total: '', paid: '', note: '',
+    guest: '', phone: '', status: 'unpaid', total: '', paid: '', note: '', adults: 1, children: 0,
     room_id: state.rooms[0].id,
     start_date: defaultDay(), end_date: addDays(defaultDay(), 1),
     ...preset,
@@ -680,7 +752,7 @@ function openBooking(booking, preset = {}) {
 
   bForm.room_id.innerHTML = state.rooms
     .map((r) => `<option value="${r.id}">${esc(r.name)}${r.category ? ' — ' + esc(r.category) : ''}</option>`).join('');
-  for (const k of ['guest', 'phone', 'room_id', 'start_date', 'end_date', 'total', 'paid', 'note']) bForm[k].value = b[k];
+  for (const k of ['guest', 'phone', 'room_id', 'start_date', 'end_date', 'total', 'paid', 'note', 'adults', 'children']) bForm[k].value = b[k];
   bForm.status.value = b.status;
   syncDays();
 
@@ -718,6 +790,8 @@ bForm.addEventListener('submit', async (e) => {
   const data = Object.fromEntries(new FormData(bForm));
   delete data.nights;
   data.room_id = Number(data.room_id);
+  data.adults = Number(data.adults || 0);
+  data.children = Number(data.children || 0);
   const btn = $('button[type=submit]', bForm);
   btn.disabled = true;
   try {
@@ -794,7 +868,7 @@ $('#next').onclick = () => setFrom(addDays(state.from, 7));
 // Месяц = ровно одна страница таблицы, чтобы между страницами не было пропусков и повторов.
 $('#prev-month').onclick = () => setFrom(addDays(state.from, -DAYS));
 $('#next-month').onclick = () => setFrom(addDays(state.from, DAYS));
-$('#today').onclick = () => setFrom(todayIso());
+$('#today').onclick = () => { state.statsDay = todayIso(); setFrom(todayIso()); };
 $('#from').onchange = (e) => e.target.value && setFrom(e.target.value);
 $('#add-room').onclick = () => openRoom(null);
 $('#add-booking').onclick = () => openBooking(null);

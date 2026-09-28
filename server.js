@@ -40,7 +40,9 @@ db.exec(`
     status     TEXT NOT NULL CHECK (status IN ('paid', 'partial', 'unpaid')),
     total      TEXT NOT NULL DEFAULT '',
     paid       TEXT NOT NULL DEFAULT '',
-    note       TEXT NOT NULL DEFAULT ''
+    note       TEXT NOT NULL DEFAULT '',
+    adults     INTEGER NOT NULL DEFAULT 1,
+    children   INTEGER NOT NULL DEFAULT 0
   );
   CREATE TABLE IF NOT EXISTS meta (
     key   TEXT PRIMARY KEY,
@@ -88,6 +90,13 @@ if (db.prepare('PRAGMA user_version').get().user_version < 1) {
   db.exec('COMMIT');
 }
 
+// Базы, созданные до появления учёта гостей, получают столбцы взрослых и детей.
+const bookingColumns = db.prepare('PRAGMA table_info(bookings)').all().map((c) => c.name);
+if (!bookingColumns.includes('adults')) {
+  db.exec('ALTER TABLE bookings ADD COLUMN adults INTEGER NOT NULL DEFAULT 1');
+  db.exec('ALTER TABLE bookings ADD COLUMN children INTEGER NOT NULL DEFAULT 0');
+}
+
 // Раньше end_date означал последний занятый день, теперь — день выезда.
 if (db.prepare('PRAGMA user_version').get().user_version < 2) {
   db.exec('BEGIN');
@@ -110,14 +119,19 @@ const q = {
      WHERE room_id = ? AND id != ? AND end_date > ? AND start_date < ? LIMIT 1`
   ),
   bookingAdd: db.prepare(
-    `INSERT INTO bookings (room_id, guest, phone, start_date, end_date, status, total, paid, note)
-     VALUES (:room_id, :guest, :phone, :start_date, :end_date, :status, :total, :paid, :note)`
+    `INSERT INTO bookings (room_id, guest, phone, start_date, end_date, status, total, paid, note, adults, children)
+     VALUES (:room_id, :guest, :phone, :start_date, :end_date, :status, :total, :paid, :note, :adults, :children)`
   ),
   bookingUpdate: db.prepare(
     `UPDATE bookings SET room_id = :room_id, guest = :guest, phone = :phone,
        start_date = :start_date, end_date = :end_date, status = :status,
-       total = :total, paid = :paid, note = :note
+       total = :total, paid = :paid, note = :note, adults = :adults, children = :children
      WHERE id = :id`
+  ),
+  // Гости, которые проводят в отеле ночь с указанного дня на следующий.
+  guestsOnDay: db.prepare(
+    `SELECT COALESCE(SUM(adults), 0) AS adults, COALESCE(SUM(children), 0) AS children, COUNT(*) AS rooms
+     FROM bookings WHERE start_date <= ? AND end_date > ?`
   ),
   bookingDelete: db.prepare('DELETE FROM bookings WHERE id = ?'),
 };
@@ -153,12 +167,17 @@ function cleanBooking(body, id = 0) {
     total: str(body.total, 50),
     paid: str(body.paid, 50),
     note: str(body.note, 2000),
+    adults: Number(body.adults ?? 1),
+    children: Number(body.children ?? 0),
   };
   if (!b.guest) throw new HttpError(400, 'Укажите имя гостя');
   if (!Number.isInteger(b.room_id)) throw new HttpError(400, 'Выберите номер');
   if (!isDate(b.start_date) || !isDate(b.end_date)) throw new HttpError(400, 'Неверные даты');
   if (b.end_date <= b.start_date) throw new HttpError(400, 'Дата выезда должна быть позже даты заезда');
   if (!['paid', 'partial', 'unpaid'].includes(b.status)) throw new HttpError(400, 'Неверный статус оплаты');
+  const count = (n) => Number.isInteger(n) && n >= 0 && n <= 99;
+  if (!count(b.adults) || !count(b.children)) throw new HttpError(400, 'Неверное количество гостей');
+  if (b.adults + b.children === 0) throw new HttpError(400, 'Укажите хотя бы одного гостя');
 
   const clash = q.overlap.get(b.room_id, id, b.start_date, b.end_date);
   if (clash) {
@@ -191,6 +210,12 @@ async function api(req, url) {
   const [, , resource, rawId] = url.pathname.split('/');
   const id = Number(rawId);
   const method = req.method;
+
+  if (resource === 'stats' && method === 'GET') {
+    const day = url.searchParams.get('day');
+    if (!isDate(day)) throw new HttpError(400, 'Неверная дата');
+    return q.guestsOnDay.get(day, day);
+  }
 
   if (resource === 'data' && method === 'GET') {
     const from = url.searchParams.get('from');
