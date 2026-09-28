@@ -1,0 +1,758 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mini-Sheter</title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --surface: #ffffff;
+    --line: #e1e4e8;
+    --line-strong: #c4c9d0;
+    --text: #1f2328;
+    --muted: #6a737d;
+    --accent: #2f5bd3;
+    --today: #eaf0ff;
+    --hover: #eef2f7;
+
+    --paid-bg: #dcf3e2;  --paid-bd: #2e9d52;  --paid-tx: #15542b;
+    --part-bg: #fcf1c7;  --part-bd: #d4a20b;  --part-tx: #6b4e00;
+    --unpd-bg: #fbdcdc;  --unpd-bd: #d0393a;  --unpd-tx: #7a1a1b;
+
+    --lux-bg: #efe7fb;   --lux-bd: #7a4cc2;   --lux-row: #f6f1fd;
+    --dlx-bg: #e2eefb;   --dlx-bd: #2f6fb8;   --dlx-row: #eff5fc;
+
+    --room-w: 130px;
+    --day-w: 96px;
+    --row-h: 46px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  button, input, select, textarea { font: inherit; color: inherit; }
+
+  /* ---------- Верхняя панель ---------- */
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+    padding: 10px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+  }
+  h1 { font-size: 17px; margin: 0 8px 0 0; font-weight: 600; }
+  .group { display: flex; align-items: center; gap: 6px; }
+  .spacer { flex: 1; }
+
+  .btn {
+    height: 32px;
+    padding: 0 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 6px;
+    background: var(--surface);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--hover); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .btn.danger { color: var(--unpd-bd); border-color: #e7b3b3; }
+  .btn.danger:hover { background: #fdf0f0; }
+  .btn:disabled { opacity: .5; cursor: default; }
+
+  input[type=date].period { height: 32px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); }
+
+  .legend { display: flex; gap: 12px; color: var(--muted); font-size: 13px; }
+  .legend span::before {
+    content: ""; display: inline-block; width: 12px; height: 12px;
+    border-radius: 3px; margin-right: 5px; vertical-align: -2px; border-left: 3px solid;
+  }
+  .legend .paid::before    { background: var(--paid-bg); border-color: var(--paid-bd); }
+  .legend .partial::before { background: var(--part-bg); border-color: var(--part-bd); }
+  .legend .unpaid::before  { background: var(--unpd-bg); border-color: var(--unpd-bd); }
+  .legend .lux::before     { background: var(--lux-bg); border-color: var(--lux-bd); }
+  .legend .deluxe::before  { background: var(--dlx-bg); border-color: var(--dlx-bd); }
+  .legend .sep { width: 1px; background: var(--line); }
+  .legend .sep::before { display: none; }
+
+  /* ---------- Таблица ---------- */
+  main { flex: 1; min-height: 0; padding: 12px 16px 16px; }
+  .grid-wrap {
+    height: 100%;
+    overflow: auto;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+
+  table {
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+    width: max-content;
+    user-select: none;
+  }
+  col.room { width: var(--room-w); }
+  col.half { width: calc(var(--day-w) / 2); }
+
+  th, td {
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    padding: 0;
+  }
+
+  thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    height: 50px;
+    background: var(--surface);
+    font-weight: 600;
+    text-align: center;
+    border-bottom-color: var(--line-strong);
+  }
+  thead th .date { display: block; font-size: 13px; font-variant-numeric: tabular-nums; }
+  thead th .wd { display: block; font-size: 12px; font-weight: 400; color: var(--muted); }
+  thead th.today { background: var(--today); box-shadow: inset 0 -3px 0 var(--accent); }
+
+  th.room {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--surface);
+    text-align: left;
+    padding: 0 10px;
+    border-right-color: var(--line-strong);
+    font-weight: 600;
+  }
+  thead th.corner { z-index: 3; left: 0; position: sticky; text-align: left; padding: 0 10px; color: var(--muted); font-weight: 500; }
+
+  tbody tr { height: var(--row-h); }
+  tbody th.room { cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  tbody th.room:hover { background: var(--hover); color: var(--accent); }
+  th.room .cat { display: block; font-size: 11px; font-weight: 400; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+
+  /* Люкс и Делюкс выделены цветом всей строки */
+  tr.lux th.room    { background: var(--lux-bg); box-shadow: inset 4px 0 0 var(--lux-bd); }
+  tr.lux th.room .cat { color: var(--lux-bd); font-weight: 600; }
+  tr.lux td.free    { background: var(--lux-row); }
+  tr.deluxe th.room { background: var(--dlx-bg); box-shadow: inset 4px 0 0 var(--dlx-bd); }
+  tr.deluxe th.room .cat { color: var(--dlx-bd); font-weight: 600; }
+  tr.deluxe td.free { background: var(--dlx-row); }
+  tr.lux td.free.today, tr.deluxe td.free.today { background: var(--today); }
+  tr.lux td.free:hover, tr.deluxe td.free:hover { background: var(--hover); }
+  tr.lux td.free.selecting, tr.deluxe td.free.selecting { background: #d6e2ff; }
+
+  td.free { cursor: cell; }
+  /* день = две половины: утро (выезд) и вечер (заезд); линия сетки только между днями */
+  td.free.am { border-right: none; }
+  td.free.today { background: var(--today); }
+  td.free:hover { background: var(--hover); }
+  td.free.selecting { background: #d6e2ff; }
+
+  .month-start { border-left: 2px solid var(--line-strong); }
+
+  td.busy { padding: 3px 2px; vertical-align: middle; border-right: none; }
+  .bk {
+    height: calc(var(--row-h) - 8px);
+    padding: 3px 8px;
+    border-radius: 5px;
+    border-left: 4px solid;
+    cursor: pointer;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .bk:hover { filter: brightness(.97); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+  .bk b { display: block; font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; }
+  .bk small { display: block; font-size: 12px; opacity: .8; overflow: hidden; text-overflow: ellipsis; }
+  .bk.paid    { background: var(--paid-bg); border-color: var(--paid-bd); color: var(--paid-tx); }
+  .bk.partial { background: var(--part-bg); border-color: var(--part-bd); color: var(--part-tx); }
+  .bk.unpaid  { background: var(--unpd-bg); border-color: var(--unpd-bd); color: var(--unpd-tx); }
+  .bk.cut-left  { border-top-left-radius: 0; border-bottom-left-radius: 0; border-left-style: dashed; }
+  .bk.cut-right { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+
+  tr.add-row th.room { color: var(--accent); font-weight: 500; }
+  tr.add-row td { background: #fafbfc; }
+
+  .empty {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--muted);
+  }
+
+  /* ---------- Диалоги ---------- */
+  dialog {
+    width: min(480px, calc(100vw - 32px));
+    padding: 0;
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.25);
+  }
+  dialog::backdrop { background: rgba(20, 24, 31, .35); }
+  dialog form { padding: 18px 20px 20px; }
+  dialog h2 { font-size: 17px; margin: 0 0 14px; }
+
+  .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+  .field > span { font-size: 12px; color: var(--muted); }
+  .field { min-width: 0; }
+  .field input, .field select, .field textarea {
+    min-width: 0;
+    width: 100%;
+    padding: 7px 9px;
+    border: 1px solid var(--line-strong);
+    border-radius: 6px;
+    background: #fff;
+  }
+  .field textarea { resize: vertical; min-height: 56px; }
+  .field input:focus, .field select:focus, .field textarea:focus { outline: 2px solid #b9cbff; border-color: var(--accent); }
+  .row { display: grid; gap: 10px; }
+  .row.dates { grid-template-columns: minmax(0, 1fr) 64px minmax(0, 1fr); }
+  .row.two { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+
+  .status { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .status label { position: relative; display: block; cursor: pointer; }
+  .status label span {
+    display: flex; align-items: center; justify-content: center;
+    height: 34px; border: 1px solid var(--line-strong); border-radius: 6px; font-size: 13px;
+  }
+  .status input { position: absolute; inset: 0; margin: 0; opacity: 0; pointer-events: none; }
+  .status input:focus-visible + span { outline: 2px solid #b9cbff; }
+  .status .paid input:checked + span    { background: var(--paid-bg); border-color: var(--paid-bd); color: var(--paid-tx); font-weight: 600; }
+  .status .partial input:checked + span { background: var(--part-bg); border-color: var(--part-bd); color: var(--part-tx); font-weight: 600; }
+  .status .unpaid input:checked + span  { background: var(--unpd-bg); border-color: var(--unpd-bd); color: var(--unpd-tx); font-weight: 600; }
+
+  .error { color: var(--unpd-bd); font-size: 13px; min-height: 18px; margin: 4px 0 8px; }
+  .actions { display: flex; gap: 8px; }
+  .actions .spacer { flex: 1; }
+
+  /* на ноутбуках шапка должна помещаться в одну строку; категория и так подписана у номера */
+  @media (max-width: 1500px) {
+    .legend .sep, .legend .lux, .legend .deluxe { display: none; }
+  }
+
+  @media (max-width: 900px) {
+    :root { --room-w: 90px; --day-w: 88px; }
+    .legend { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Mini-Sheter</h1>
+  <div class="group">
+    <button class="btn" id="prev-month" title="Назад на 30 дней">« Месяц</button>
+    <button class="btn" id="prev" title="Назад на неделю">‹ 7 дн.</button>
+    <button class="btn" id="today">Сегодня</button>
+    <button class="btn" id="next" title="Вперёд на неделю">7 дн. ›</button>
+    <button class="btn" id="next-month" title="Вперёд на 30 дней">Месяц »</button>
+    <input type="date" class="period" id="from" title="Начало периода">
+  </div>
+  <div class="legend">
+    <span class="paid">Оплачено</span>
+    <span class="partial">Частично</span>
+    <span class="unpaid">Не оплачено</span>
+    <span class="sep"></span>
+    <span class="lux">Люкс</span>
+    <span class="deluxe">Делюкс</span>
+  </div>
+  <div class="spacer"></div>
+  <div class="group">
+    <button class="btn" id="add-room">+ Номер</button>
+    <button class="btn primary" id="add-booking">+ Бронь</button>
+    <form method="post" action="/logout"><button class="btn" title="Выйти">Выйти</button></form>
+  </div>
+</header>
+
+<main>
+  <div class="grid-wrap" id="grid"></div>
+</main>
+
+<dialog id="booking-dlg">
+  <form method="dialog" novalidate>
+    <h2 id="booking-title">Новая бронь</h2>
+
+    <label class="field">
+      <span>Гость</span>
+      <input name="guest" required maxlength="200" placeholder="Фамилия Имя" autocomplete="off">
+    </label>
+
+    <div class="row two">
+      <label class="field">
+        <span>Телефон / контакт</span>
+        <input name="phone" maxlength="100" placeholder="+7 …" autocomplete="off">
+      </label>
+      <label class="field">
+        <span>Номер</span>
+        <select name="room_id"></select>
+      </label>
+    </div>
+
+    <div class="row dates">
+      <label class="field">
+        <span>Заезд</span>
+        <input type="date" name="start_date" required>
+      </label>
+      <label class="field">
+        <span>Ночей</span>
+        <input type="number" name="nights" min="1" max="365" step="1">
+      </label>
+      <label class="field">
+        <span>Выезд</span>
+        <input type="date" name="end_date" required>
+      </label>
+    </div>
+
+    <div class="field">
+      <span>Оплата</span>
+      <div class="status">
+        <label class="paid"><input type="radio" name="status" value="paid"><span>Оплачено</span></label>
+        <label class="partial"><input type="radio" name="status" value="partial"><span>Частично</span></label>
+        <label class="unpaid"><input type="radio" name="status" value="unpaid"><span>Не оплачено</span></label>
+      </div>
+    </div>
+
+    <div class="row two">
+      <label class="field">
+        <span>Сумма</span>
+        <input name="total" maxlength="50" inputmode="decimal" autocomplete="off">
+      </label>
+      <label class="field">
+        <span>Внесено</span>
+        <input name="paid" maxlength="50" inputmode="decimal" autocomplete="off">
+      </label>
+    </div>
+
+    <label class="field">
+      <span>Примечание</span>
+      <textarea name="note" maxlength="2000" rows="2"></textarea>
+    </label>
+
+    <div class="error" id="booking-error"></div>
+
+    <div class="actions">
+      <button type="button" class="btn danger" id="booking-delete">Удалить</button>
+      <div class="spacer"></div>
+      <button type="button" class="btn" value="cancel" data-close>Отмена</button>
+      <button type="submit" class="btn primary">Сохранить</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="room-dlg">
+  <form method="dialog" novalidate>
+    <h2 id="room-title">Новый номер</h2>
+    <label class="field">
+      <span>Номер или название</span>
+      <input name="name" required maxlength="40" placeholder="например, 1001" autocomplete="off">
+    </label>
+    <label class="field">
+      <span>Категория</span>
+      <select name="category"></select>
+    </label>
+    <div class="error" id="room-error"></div>
+    <div class="actions">
+      <button type="button" class="btn danger" id="room-delete">Удалить</button>
+      <div class="spacer"></div>
+      <button type="button" class="btn" data-close>Отмена</button>
+      <button type="submit" class="btn primary">Сохранить</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const DAYS = 30;
+const WEEKDAYS = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
+const ROW_CLASS = { 'Люкс': 'lux', 'Делюкс': 'deluxe' };
+const STATUS_RU = { paid: 'Оплачено', partial: 'Частично', unpaid: 'Не оплачено' };
+
+// ---------- Даты: работаем со строками YYYY-MM-DD в UTC, чтобы не было сдвигов часовых поясов ----------
+const toDate = (iso) => new Date(iso + 'T00:00:00Z');
+const toIso = (d) => d.toISOString().slice(0, 10);
+const addDays = (iso, n) => { const d = toDate(iso); d.setUTCDate(d.getUTCDate() + n); return toIso(d); };
+const diffDays = (a, b) => Math.round((toDate(b) - toDate(a)) / 86400000);
+const ruDate = (iso) => iso.split('-').reverse().join('.');
+const todayIso = () => {
+  const d = new Date();
+  return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
+};
+
+// ---------- Состояние ----------
+const state = {
+  from: new URLSearchParams(location.search).get('from') || todayIso(),
+  categories: [],
+  rooms: [],
+  bookings: [],
+};
+
+const $ = (sel, root = document) => root.querySelector(sel);
+const grid = $('#grid');
+
+async function request(method, url, body) {
+  const res = await fetch(url, {
+    method,
+    headers: body ? { 'Content-Type': 'application/json' } : {},
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (res.status === 401) {
+    // сессия истекла — показываем страницу входа
+    location.reload();
+    throw new Error('Требуется вход');
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Ошибка ' + res.status);
+  return data;
+}
+
+async function load() {
+  const to = addDays(state.from, DAYS - 1);
+  try {
+    const data = await request('GET', `/api/data?from=${state.from}&to=${to}`);
+    state.rooms = data.rooms.sort(compareRooms);
+    state.bookings = data.bookings;
+    state.categories = data.categories;
+    render();
+  } catch (e) {
+    grid.innerHTML = `<div class="empty">Не удалось загрузить данные: ${esc(e.message)}</div>`;
+  }
+}
+
+// Порядок: сначала четырёхзначные номера (1001…5002), затем 101…305, затем номера с названиями.
+function roomGroup(name) {
+  const n = /^\d+$/.test(name) ? Number(name) : NaN;
+  if (n >= 1000) return 0;
+  if (n >= 0) return 1;
+  return 2;
+}
+function compareRooms(a, b) {
+  return roomGroup(a.name) - roomGroup(b.name)
+    || a.name.localeCompare(b.name, 'ru', { numeric: true });
+}
+
+function setFrom(iso) {
+  state.from = iso;
+  $('#from').value = iso;
+  const url = new URL(location.href);
+  if (iso === todayIso()) url.searchParams.delete('from'); else url.searchParams.set('from', iso);
+  history.replaceState(null, '', url);
+  load();
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// ---------- Отрисовка таблицы ----------
+// Каждый день — две половины (слоты): 2·i — утро, 2·i+1 — вечер.
+// Бронь занимает слоты от вечера дня заезда до утра дня выезда,
+// поэтому в день выезда одного гостя в номер может заехать следующий.
+const SLOTS = DAYS * 2;
+
+function bookingSlots(b) {
+  return [
+    Math.max(0, diffDays(state.from, b.start_date) * 2 + 1),
+    Math.min(SLOTS - 1, diffDays(state.from, b.end_date) * 2),
+  ];
+}
+
+function render() {
+  const days = Array.from({ length: DAYS }, (_, i) => addDays(state.from, i));
+  const today = todayIso();
+  const dayClass = (iso, i) => [
+    iso === today ? 'today' : '',
+    i > 0 && iso.endsWith('-01') ? 'month-start' : '',
+  ].join(' ').trim();
+
+  let html = '<table><colgroup><col class="room">' + '<col class="half">'.repeat(SLOTS) + '</colgroup>';
+  html += '<thead><tr><th class="room corner">Номер</th>';
+  days.forEach((iso, i) => {
+    html += `<th colspan="2" class="${dayClass(iso, i)}"><span class="date">${ruDate(iso)}</span>`
+          + `<span class="wd">${WEEKDAYS[toDate(iso).getUTCDay()]}</span></th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  state.occupied = new Map();
+  for (const room of state.rooms) {
+    const bySlot = new Map();
+    const occupied = new Array(SLOTS).fill(false);
+    for (const b of state.bookings) {
+      if (b.room_id !== room.id) continue;
+      const [first, last] = bookingSlots(b);
+      if (first > last) continue;
+      bySlot.set(first, b);
+      occupied.fill(true, first, last + 1);
+    }
+    state.occupied.set(room.id, occupied);
+
+    const rowClass = ROW_CLASS[room.category] || '';
+    html += `<tr class="${rowClass}" data-room="${room.id}">`
+          + `<th class="room" data-room-edit="${room.id}" title="${esc(room.name)}${room.category ? ' — ' + esc(room.category) : ''}">`
+          + `${esc(room.name)}${room.category ? `<span class="cat">${esc(room.category)}</span>` : ''}</th>`;
+    for (let slot = 0; slot < SLOTS; ) {
+      const day = slot >> 1;
+      const iso = days[day];
+      const b = bySlot.get(slot);
+      if (b) {
+        const [, last] = bookingSlots(b);
+        const cls = ['bk', b.status,
+          b.start_date < state.from ? 'cut-left' : '',
+          b.end_date > days[DAYS - 1] ? 'cut-right' : ''].join(' ');
+        html += `<td class="busy" colspan="${last - slot + 1}">`
+              + `<div class="${cls}" data-booking="${b.id}" title="${esc(tooltip(b))}">`
+              + `<b>${esc(b.guest)}</b><small>${esc(b.phone || STATUS_RU[b.status])}</small></div></td>`;
+        slot = last + 1;
+      } else {
+        const half = slot % 2 ? 'pm' : 'am';
+        const cls = half === 'am' ? dayClass(iso, day) : iso === today ? 'today' : '';
+        html += `<td class="free ${half} ${cls}" data-slot="${slot}"></td>`;
+        slot++;
+      }
+    }
+    html += '</tr>';
+  }
+
+  html += `<tr class="add-row"><th class="room" id="add-room-row">+ Номер</th><td colspan="${SLOTS}"></td></tr>`;
+  html += '</tbody></table>';
+
+  if (!state.rooms.length) {
+    html += '<div class="empty">Пока нет ни одного номера. Нажмите «+ Номер», чтобы добавить первый.</div>';
+  }
+  grid.innerHTML = html;
+}
+
+function nightsWord(n) {
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return 'ночь';
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'ночи';
+  return 'ночей';
+}
+
+function tooltip(b) {
+  const n = diffDays(b.start_date, b.end_date);
+  return [
+    b.guest,
+    b.phone && 'Тел.: ' + b.phone,
+    `Заезд ${ruDate(b.start_date)}, выезд ${ruDate(b.end_date)} (${n} ${nightsWord(n)})`,
+    STATUS_RU[b.status] + (b.total ? `, сумма ${b.total}` : '') + (b.paid ? `, внесено ${b.paid}` : ''),
+    b.note,
+  ].filter(Boolean).join('\n');
+}
+
+// ---------- Выделение диапазона мышью: от дня заезда до дня выезда ----------
+let drag = null;
+
+// Слоты, которые займёт бронь с заездом в день d1 и выездом в день d2 (индексы дней в таблице).
+function stayRange(d1, d2) {
+  if (d2 <= d1) d2 = d1 + 1;
+  return [d1 * 2 + 1, Math.min(SLOTS - 1, d2 * 2)];
+}
+
+function dragDays() {
+  return [drag.startDay, drag.endDay].sort((a, b) => a - b);
+}
+
+grid.addEventListener('mousedown', (e) => {
+  const td = e.target.closest('td.free');
+  if (!td || e.button !== 0) return;
+  const day = Number(td.dataset.slot) >> 1;
+  drag = { row: td.parentElement, startDay: day, endDay: day };
+  paintSelection();
+});
+
+grid.addEventListener('mouseover', (e) => {
+  if (!drag) return;
+  const td = e.target.closest('td');
+  if (!td || td.parentElement !== drag.row || !td.dataset.slot) return;
+  const day = Number(td.dataset.slot) >> 1;
+  const [d1, d2] = [drag.startDay, day].sort((a, b) => a - b);
+  const [first, last] = stayRange(d1, d2);
+  // не даём выделению перескочить через существующую бронь
+  const occupied = state.occupied.get(Number(drag.row.dataset.room));
+  if (occupied.slice(first, last + 1).some(Boolean)) return;
+  drag.endDay = day;
+  paintSelection();
+});
+
+document.addEventListener('mouseup', () => {
+  if (!drag) return;
+  const room_id = Number(drag.row.dataset.room);
+  const [d1, d2] = dragDays();
+  drag = null;
+  paintSelection();
+  openBooking(null, {
+    room_id,
+    start_date: addDays(state.from, d1),
+    end_date: addDays(state.from, Math.max(d2, d1 + 1)),
+  });
+});
+
+function paintSelection() {
+  grid.querySelectorAll('td.selecting').forEach((c) => c.classList.remove('selecting'));
+  if (!drag) return;
+  const [first, last] = stayRange(...dragDays());
+  drag.row.querySelectorAll('td.free').forEach((c) => {
+    const slot = Number(c.dataset.slot);
+    if (slot >= first && slot <= last) c.classList.add('selecting');
+  });
+}
+
+grid.addEventListener('click', (e) => {
+  const bk = e.target.closest('[data-booking]');
+  if (bk) return openBooking(state.bookings.find((b) => b.id === Number(bk.dataset.booking)));
+  const room = e.target.closest('[data-room-edit]');
+  if (room) return openRoom(state.rooms.find((r) => r.id === Number(room.dataset.roomEdit)));
+  if (e.target.closest('#add-room-row')) return openRoom(null);
+});
+
+// ---------- Диалог брони ----------
+const bDlg = $('#booking-dlg');
+const bForm = $('form', bDlg);
+let editingBooking = null;
+
+function openBooking(booking, preset = {}) {
+  if (!state.rooms.length) return openRoom(null);
+  editingBooking = booking || null;
+  const b = booking || {
+    guest: '', phone: '', status: 'unpaid', total: '', paid: '', note: '',
+    room_id: state.rooms[0].id,
+    start_date: defaultDay(), end_date: addDays(defaultDay(), 1),
+    ...preset,
+  };
+
+  bForm.room_id.innerHTML = state.rooms
+    .map((r) => `<option value="${r.id}">${esc(r.name)}${r.category ? ' — ' + esc(r.category) : ''}</option>`).join('');
+  for (const k of ['guest', 'phone', 'room_id', 'start_date', 'end_date', 'total', 'paid', 'note']) bForm[k].value = b[k];
+  bForm.status.value = b.status;
+  syncDays();
+
+  $('#booking-title').textContent = booking ? 'Бронь' : 'Новая бронь';
+  $('#booking-delete').hidden = !booking;
+  $('#booking-error').textContent = '';
+  bDlg.showModal();
+  bForm.guest.focus();
+}
+
+function defaultDay() {
+  const today = todayIso();
+  return diffDays(state.from, today) >= 0 && diffDays(state.from, today) < DAYS ? today : state.from;
+}
+
+function syncDays() {
+  const { start_date: s, end_date: e } = bForm;
+  bForm.nights.value = s.value && e.value && e.value > s.value ? diffDays(s.value, e.value) : '';
+}
+
+bForm.nights.addEventListener('input', () => {
+  const n = parseInt(bForm.nights.value, 10);
+  if (n >= 1 && bForm.start_date.value) bForm.end_date.value = addDays(bForm.start_date.value, n);
+});
+bForm.end_date.addEventListener('change', syncDays);
+bForm.start_date.addEventListener('change', () => {
+  // при смене даты заезда сохраняем количество ночей
+  const n = parseInt(bForm.nights.value, 10) || 1;
+  if (bForm.start_date.value) bForm.end_date.value = addDays(bForm.start_date.value, n);
+  syncDays();
+});
+
+bForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(bForm));
+  delete data.nights;
+  data.room_id = Number(data.room_id);
+  const btn = $('button[type=submit]', bForm);
+  btn.disabled = true;
+  try {
+    if (editingBooking) await request('PUT', `/api/bookings/${editingBooking.id}`, data);
+    else await request('POST', '/api/bookings', data);
+    bDlg.close();
+    load();
+  } catch (err) {
+    $('#booking-error').textContent = err.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+$('#booking-delete').addEventListener('click', async () => {
+  if (!editingBooking || !confirm(`Удалить бронь «${editingBooking.guest}»?`)) return;
+  try {
+    await request('DELETE', `/api/bookings/${editingBooking.id}`);
+    bDlg.close();
+    load();
+  } catch (err) {
+    $('#booking-error').textContent = err.message;
+  }
+});
+
+// ---------- Диалог номера ----------
+const rDlg = $('#room-dlg');
+const rForm = $('form', rDlg);
+let editingRoom = null;
+
+function openRoom(room) {
+  editingRoom = room || null;
+  rForm.name.value = room ? room.name : '';
+  rForm.category.innerHTML = '<option value="">— без категории —</option>'
+    + state.categories.map((c) => `<option>${esc(c)}</option>`).join('');
+  rForm.category.value = room ? room.category : '';
+  $('#room-title').textContent = room ? 'Номер ' + room.name : 'Новый номер';
+  $('#room-delete').hidden = !room;
+  $('#room-error').textContent = '';
+  rDlg.showModal();
+  rForm.name.select();
+}
+
+rForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const room = { name: rForm.name.value.trim(), category: rForm.category.value };
+  try {
+    if (editingRoom) await request('PUT', `/api/rooms/${editingRoom.id}`, room);
+    else await request('POST', '/api/rooms', room);
+    rDlg.close();
+    load();
+  } catch (err) {
+    $('#room-error').textContent = err.message;
+  }
+});
+
+$('#room-delete').addEventListener('click', async () => {
+  if (!editingRoom) return;
+  if (!confirm(`Удалить номер «${editingRoom.name}» вместе со всеми его бронями?`)) return;
+  try {
+    await request('DELETE', `/api/rooms/${editingRoom.id}`);
+    rDlg.close();
+    load();
+  } catch (err) {
+    $('#room-error').textContent = err.message;
+  }
+});
+
+document.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => b.closest('dialog').close()));
+
+// ---------- Панель ----------
+$('#prev').onclick = () => setFrom(addDays(state.from, -7));
+$('#next').onclick = () => setFrom(addDays(state.from, 7));
+// Месяц = ровно одна страница таблицы, чтобы между страницами не было пропусков и повторов.
+$('#prev-month').onclick = () => setFrom(addDays(state.from, -DAYS));
+$('#next-month').onclick = () => setFrom(addDays(state.from, DAYS));
+$('#today').onclick = () => setFrom(todayIso());
+$('#from').onchange = (e) => e.target.value && setFrom(e.target.value);
+$('#add-room').onclick = () => openRoom(null);
+$('#add-booking').onclick = () => openBooking(null);
+
+$('#from').value = state.from;
+load();
+</script>
+</body>
+</html>

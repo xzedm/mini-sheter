@@ -1,0 +1,13 @@
+{
+  "name": "guest-manager",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Mini-Sheter — бронирование номеров",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning server.js"
+  }
+}

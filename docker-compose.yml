@@ -1,0 +1,25 @@
+# Запуск на сервере:  DOMAIN=booking.example.com docker compose up -d
+# Пароль берётся из файла .env (PASSWORD=...).
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+
+  # Caddy сам получает и продлевает HTTPS-сертификат для домена.
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    command: caddy reverse-proxy --from ${DOMAIN:?укажите DOMAIN} --to app:3000
+    volumes:
+      - caddy-data:/data
+    depends_on:
+      - app
+
+volumes:
+  caddy-data:
